@@ -1,4 +1,4 @@
-/* CANDY DREAM ACADEMY - ULTRA PREMIUM STYLES */
+/* CANDY DREAM ACADEMY V2 - ULTRA PREMIUM STYLES */
 
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Bubblegum+Sans&family=Righteous&display=swap');
 
@@ -298,6 +298,36 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
+/* LEVEL SELECTOR */
+.level-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.level-btn {
+  flex: 1;
+  padding: 18px 12px;
+  border: none;
+  border-radius: 30px;
+  font-family: 'Fredoka';
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.85);
+  border: 3px solid rgba(255, 179, 217, 0.3);
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 20px rgba(255, 179, 217, 0.2);
+}
+
+.level-btn.active {
+  background: linear-gradient(135deg, #4ECDC4, #44B3A8);
+  color: white;
+  transform: scale(1.08);
+  border-color: white;
+  box-shadow: 0 12px 35px rgba(78, 205, 196, 0.4);
+}
+
 /* CATEGORIES */
 .categories {
   display: flex;
@@ -339,6 +369,7 @@ body {
     inset 0 -3px 25px rgba(255, 255, 255, 0.6),
     0 0 0 12px rgba(255, 255, 255, 0.6),
     0 0 0 16px rgba(255, 179, 217, 0.2);
+  position: relative;
 }
 
 .question-card:hover {
@@ -348,6 +379,19 @@ body {
     inset 0 -3px 25px rgba(255, 255, 255, 0.6),
     0 0 0 12px rgba(255, 255, 255, 0.6),
     0 0 0 16px rgba(255, 179, 217, 0.3);
+}
+
+.level-badge {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #4ECDC4, #44B3A8);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 5px 15px rgba(78, 205, 196, 0.4);
 }
 
 .emoji-big {
@@ -449,6 +493,19 @@ body {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(100px) scale(0.85); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-level-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: linear-gradient(135deg, #4ECDC4, #44B3A8);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 15px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
 }
 
 .modal-title {
@@ -603,6 +660,24 @@ body {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
+.game-instructions {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 25px;
+  padding: 20px;
+  margin-bottom: 30px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.game-instructions p {
+  margin: 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
 .tetris-game {
   display: flex;
   gap: 30px;
@@ -631,15 +706,25 @@ body {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 1.2rem;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  font-size: 1.5rem;
   transition: all 0.2s ease;
+  position: relative;
 }
 
 .tetris-cell.filled {
   border: 2px solid rgba(255, 255, 255, 0.4);
   box-shadow: inset 0 2px 8px rgba(255, 255, 255, 0.2);
+}
+
+.tetris-cell.exploding {
+  animation: explode 0.5s ease;
+  transform: scale(1.5);
+}
+
+@keyframes explode {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.8); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; }
 }
 
 .tetris-controls {
@@ -652,7 +737,8 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-.tetris-controls h3 {
+.tetris-controls h3,
+.tetris-controls h4 {
   color: white;
   font-size: 1.5rem;
   margin-bottom: 20px;
@@ -702,6 +788,33 @@ body {
 
 .btn-control:active {
   transform: translateY(0);
+}
+
+.color-legend {
+  margin: 25px 0;
+}
+
+.legend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .game-over-card {
@@ -773,6 +886,10 @@ body {
   .tetris-cell {
     width: 28px;
     height: 28px;
-    font-size: 1rem;
+    font-size: 1.2rem;
+  }
+  
+  .legend-grid {
+    grid-template-columns: 1fr;
   }
 }
