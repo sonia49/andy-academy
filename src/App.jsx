@@ -1,132 +1,162 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 
-// --- BASE DE DONNÉES DES 60 EXERCICES ---
-const QUESTIONS_6EME = {
-  math: [
-    { q: "15 × 12 ?", a: "180" }, { q: "1/4 de 100 ?", a: "25" }, { q: "456 + 789 ?", a: "1245" },
-    { q: "144 ÷ 12 ?", a: "12" }, { q: "25 × 4 ?", a: "100" }, { q: "1000 - 347 ?", a: "653" },
-    { q: "Côtés d'un hexagone ?", a: "6" }, { q: "2.5 + 3.5 ?", a: "6" }, { q: "Moitié de 50 ?", a: "25" },
-    { q: "Angles droits d'un carré ?", a: "4" }, { q: "10.5 - 4.2 ?", a: "6.3" }, { q: "0.5 × 10 ?", a: "5" },
-    { q: "Périmètre carré côté 5 ?", a: "20" }, { q: "3/4 de 80 ?", a: "60" }, { q: "9 × 9 ?", a: "81" },
-    { q: "Triple de 15 ?", a: "45" }, { q: "1/2 + 1/2 ?", a: "1" }, { q: "Minutes dans 2h ?", a: "120" },
-    { q: "10% de 500 ?", a: "50" }, { q: "Somme des angles triangle ?", a: "180" }
-  ],
-  french: [
-    { q: "Pluriel de 'cheval' ?", a: "chevaux" }, { q: "Féminin de 'acteur' ?", a: "actrice" }, { q: "Contraire de 'grand' ?", a: "petit" },
-    { q: "Synonyme de 'joyeux' ?", a: "heureux" }, { q: "Verbe : 'Le chat dort' ?", a: "dort" }, { q: "Sujet : 'Léa mange' ?", a: "léa" },
-    { q: "Nature de 'rapidement' ?", a: "adverbe" }, { q: "Pluriel de 'bateau' ?", a: "bateaux" }, { q: "Passé de 'être' (il) ?", a: "était" },
-    { q: "Futur de 'aller' (tu) ?", a: "iras" }, { q: "COD : 'Je vois l'oiseau' ?", a: "l'oiseau" }, { q: "Type de 'Stop !' ?", a: "impérative" },
-    { q: "Homonyme de 'mer' ?", a: "mère" }, { q: "Verbe 'faire' (nous) ?", a: "faisons" }, { q: "Pluriel de 'hibou' ?", a: "hiboux" },
-    { q: "Genre de 'table' ?", a: "féminin" }, { q: "Adjectif : 'La rose rouge' ?", a: "rouge" }, { q: "Verbe 'avoir' (ils) ?", a: "ont" },
-    { q: "Orthographe : 'des (sac)' ?", a: "sacs" }, { q: "Le petit de la vache ?", a: "veau" }
-  ],
-  english: [
-    { q: "Chien ?", a: "dog" }, { q: "Chat ?", a: "cat" }, { q: "Rouge ?", a: "red" }, { q: "Pomme ?", a: "apple" },
-    { q: "Bonjour (matin) ?", a: "good morning" }, { q: "15 ?", a: "fifteen" }, { q: "20 ?", a: "twenty" },
-    { q: "Bleu ?", a: "blue" }, { q: "Maison ?", a: "house" }, { q: "École ?", a: "school" },
-    { q: "Vert ?", a: "green" }, { q: "Jaune ?", a: "yellow" }, { q: "Livre ?", a: "book" },
-    { q: "Père ?", a: "father" }, { q: "Mère ?", a: "mother" }, { q: "Soleil ?", a: "sun" },
-    { q: "Eau ?", a: "water" }, { q: "Merci ?", a: "thank you" }, { q: "Frère ?", a: "brother" }, { q: "Sœur ?", a: "sister" }
-  ]
+// --- CONFIGURATION DU JEU ---
+const ROWS = 15;
+const COLS = 10;
+const COLORS = ['#FF6B9D', '#C8A2E8', '#C1F7DC', '#A5E7FF', '#FFD4B8', '#FFB347', '#4ECDC4'];
+const TETROMINOS = {
+  I: [[1, 1, 1, 1]],
+  O: [[1, 1], [1, 1]],
+  T: [[0, 1, 0], [1, 1, 1]],
+  L: [[1, 0], [1, 0], [1, 1]],
+  S: [[0, 1, 1], [1, 1, 0]]
 };
 
 function App() {
   const [screen, setScreen] = useState('auth');
   const [username, setUsername] = useState('');
   const [diamonds, setDiamonds] = useState(100);
-  const [currentCat, setCurrentCat] = useState('math');
-  const [questionIdx, setQuestionIdx] = useState(0);
-  const [userAnswer, setUserAnswer] = useState('');
+  const [board, setBoard] = useState(Array(ROWS).fill().map(() => Array(COLS).fill(0)));
+  const [pos, setPos] = useState({ x: 3, y: 0 });
+  const [piece, setPiece] = useState(TETROMINOS.T);
+  const [color, setColor] = useState(COLORS[0]);
+  const [gameOver, setGameOver] = useState(false);
   const [wrongAnswer, setWrongAnswer] = useState(false);
 
-  // --- TOUCH HANDLERS POUR TETRIS ---
-  const touchStart = useRef(null);
-  const handleTouchStart = (e) => touchStart.current = e.touches[0].clientX;
-  const handleTouchEnd = (e, moveLeft, moveRight, rotate) => {
-    const touchEnd = e.changedTouches[0].clientX;
-    const distance = touchEnd - touchStart.current;
-    if (Math.abs(distance) < 10) rotate(); // Taper pour tourner
-    else if (distance > 30) moveRight(); // Glisser droite
-    else if (distance < -30) moveLeft(); // Glisser gauche
-  };
+  // --- LOGIQUE DU TETRIS ---
+  const spawnPiece = useCallback(() => {
+    const keys = Object.keys(TETROMINOS);
+    const shape = TETROMINOS[keys[Math.floor(Math.random() * keys.length)]];
+    setPiece(shape);
+    setColor(COLORS[Math.floor(Math.random() * COLORS.length)]);
+    setPos({ x: Math.floor(COLS / 2) - 1, y: 0 });
+  }, []);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (username.length > 2) setScreen('dashboard');
-  };
-
-  const checkAnswer = () => {
-    const correct = QUESTIONS_6EME[currentCat][questionIdx].a.toLowerCase();
-    if (userAnswer.toLowerCase().trim() === correct) {
-      setDiamonds(prev => prev + 20);
-      setQuestionIdx(prev => (prev + 1) % 20);
-      setUserAnswer('');
-      if (window.confetti) window.confetti({ particleCount: 150, spread: 70, shapes: ['circle'], colors: ['#FF6B9D', '#C8A2E8', '#FFD4B8'] });
-    } else {
-      setWrongAnswer(true);
-      setTimeout(() => setWrongAnswer(false), 800);
+  const collide = (newPos, newPiece = piece) => {
+    for (let y = 0; y < newPiece.length; y++) {
+      for (let x = 0; x < newPiece[y].length; x++) {
+        if (newPiece[y][x] !== 0) {
+          if (!board[y + newPos.y] || board[y + newPos.y][x + newPos.x] !== 0) return true;
+        }
+      }
     }
+    return false;
+  };
+
+  const rotate = () => {
+    const rotated = piece[0].map((_, i) => piece.map(row => row[i]).reverse());
+    if (!collide(pos, rotated)) setPiece(rotated);
+  };
+
+  const move = (dir) => {
+    if (!collide({ x: pos.x + dir, y: pos.y })) setPos(prev => ({ ...prev, x: prev.x + dir }));
+  };
+
+  const drop = useCallback(() => {
+    if (!collide({ x: pos.x, y: pos.y + 1 })) {
+      setPos(prev => ({ ...prev, y: prev.y + 1 }));
+    } else {
+      // Bloquer la pièce
+      const newBoard = [...board.map(row => [...row])];
+      piece.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value) newBoard[y + pos.y][x + pos.x] = color;
+        });
+      });
+
+      // BOOM ! Check des lignes
+      let linesCleared = 0;
+      const finalBoard = newBoard.reduce((acc, row) => {
+        if (row.every(cell => cell !== 0)) {
+          linesCleared++;
+          acc.unshift(Array(COLS).fill(0));
+          if (window.confetti) window.confetti({ particleCount: 50, spread: 60, colors: [color] });
+          return acc;
+        }
+        acc.push(row);
+        return acc;
+      }, []);
+
+      if (linesCleared > 0) setDiamonds(d => d + (linesCleared * 50));
+      setBoard(finalBoard);
+      if (pos.y === 0) setGameOver(true);
+      else spawnPiece();
+    }
+  }, [board, color, piece, pos, spawnPiece]);
+
+  useEffect(() => {
+    if (screen === 'tetris' && !gameOver) {
+      const interval = setInterval(drop, 800);
+      return () => clearInterval(interval);
+    }
+  }, [screen, gameOver, drop]);
+
+  // --- CONTROLES TACTILES ---
+  const touchStart = useRef(0);
+  const onTouchStart = (e) => touchStart.current = e.touches[0].clientX;
+  const onTouchEnd = (e) => {
+    const deltaX = e.changedTouches[0].clientX - touchStart.current;
+    if (Math.abs(deltaX) < 10) rotate();
+    else if (deltaX > 30) move(1);
+    else if (deltaX < -30) move(-1);
   };
 
   return (
     <div className="app candy-theme">
-      {wrongAnswer && <div className="error-overlay"><div className="big-pink-cross">❌</div></div>}
-
       {screen === 'auth' && (
-        <div className="container">
-          <div className="glass-card auth-card animate-pop">
-            <h1 className="logo">CANDY ACADEMY</h1>
-            <p className="tagline">60 défis t'attendent ! 🍭</p>
-            <form onSubmit={handleLogin}>
-              <input className="input-premium" placeholder="Pseudo..." value={username} onChange={e => setUsername(e.target.value)} />
-              <input className="input-premium" type="password" placeholder="Mot de passe..." />
-              <button className="btn-premium">ENTRER 💎</button>
-            </form>
-          </div>
+        <div className="glass-card auth-card">
+          <h1 className="logo">CANDY ACADEMY</h1>
+          <input className="input-premium" placeholder="Pseudo..." onChange={e => setUsername(e.target.value)} />
+          <button className="btn-premium" onClick={() => setScreen('dashboard')}>ENTRER 💎</button>
         </div>
       )}
 
       {screen === 'dashboard' && (
-        <div className="container mobile-optimized">
+        <div className="container">
           <div className="glass-card header-card">
-            <div className="header-content">
-              <div className="avatar-main">🍭</div>
-              <div className="header-info">
-                <h2 className="username">{username}</h2>
-                <div className="stat-badge">💎 {diamonds} Diamants</div>
-              </div>
-            </div>
+            <h2>Salut {username} ! 🍭</h2>
+            <div className="stat-badge">💎 {diamonds}</div>
+            <button className="btn-premium" onClick={() => { setScreen('tetris'); spawnPiece(); }}>JOUER AU TETRIS 🎮</button>
           </div>
+        </div>
+      )}
 
-          <div className="categories-scroll">
-            {['math', 'french', 'english'].map(cat => (
-              <button key={cat} className={`cat-btn ${currentCat === cat ? 'active' : ''}`} onClick={() => {setCurrentCat(cat); setQuestionIdx(0);}}>
-                {cat === 'math' ? '🔢 Maths' : cat === 'french' ? '📚 FR' : '🇬🇧 EN'}
-              </button>
+      {screen === 'tetris' && (
+        <div className="tetris-layout" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          <div className="tetris-board">
+            {board.map((row, y) => (
+              <div key={y} className="t-row">
+                {row.map((cell, x) => {
+                  let active = false;
+                  if (y >= pos.y && y < pos.y + piece.length && x >= pos.x && x < pos.x + piece[0].length) {
+                    if (piece[y - pos.y][x - pos.x]) active = true;
+                  }
+                  return (
+                    <div 
+                      key={x} 
+                      className="t-cell" 
+                      style={{ backgroundColor: active ? color : (cell || 'rgba(255,255,255,0.1)') }} 
+                    />
+                  );
+                })}
+              </div>
             ))}
           </div>
-
-          <div className="glass-card question-card">
-            <h3 className="question-title">{QUESTIONS_6EME[currentCat][questionIdx].q}</h3>
-            <input className="input-premium" placeholder="Réponse..." value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyPress={e => e.key === 'Enter' && checkAnswer()} />
-            <button className="btn-premium" onClick={checkAnswer}>VALIDER ✅</button>
-          </div>
-
-          <div className="tetris-preview-card glass-card" onTouchStart={handleTouchStart} onTouchEnd={(e) => handleTouchEnd(e, () => {}, () => {}, () => alert('Rotation !'))}>
-             <p>🎮 Zone Tetris Tactile</p>
-             <small>(Glisse pour bouger, Tape pour tourner)</small>
+          <div className="controls-hint">
+            Tap: Tourner | Glisse: Bouger | 💎 {diamonds}
+            <button onClick={() => setScreen('dashboard')} className="btn-mini">Quitter</button>
           </div>
         </div>
       )}
 
       <style>{`
-        .mobile-optimized { max-width: 100%; padding: 10px; }
-        .categories-scroll { display: flex; overflow-x: auto; gap: 10px; margin-bottom: 15px; padding: 5px; }
-        .error-overlay { position: fixed; inset: 0; background: rgba(255, 107, 157, 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
-        .big-pink-cross { font-size: 12rem; animation: shake 0.5s ease-in-out; text-shadow: 0 0 30px white; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-15px); } 75% { transform: translateX(15px); } }
-        .tetris-preview-card { padding: 40px; text-align: center; background: rgba(255,255,255,0.4); margin-top: 20px; border: 2px dashed #FF6B9D; }
+        .tetris-layout { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #222; overflow: hidden; }
+        .tetris-board { border: 4px solid #FF6B9D; background: #000; display: inline-block; }
+        .t-row { display: flex; }
+        .t-cell { width: 30px; height: 30px; border: 1px solid #333; box-sizing: border-box; }
+        .controls-hint { color: white; padding: 20px; text-align: center; font-weight: bold; }
+        .btn-mini { margin-left: 10px; padding: 5px 10px; border-radius: 10px; background: #FF6B9D; color: white; border: none; }
       `}</style>
     </div>
   );
