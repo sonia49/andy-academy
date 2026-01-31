@@ -7,7 +7,6 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjYndlaGl3am93Z3RoYXpyeWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzNTg4NjIsImV4cCI6MjA4NDkzNDg2Mn0.2nP42Uh262Jt-1stolzSVM8_EEzrAdCutKgd7B2MurY'
 );
 
-// TES 60 EXERCICES COMPLETS (20 PAR MATIÈRE)
 const QUESTIONS = {
   math: {
     '6ème': [
@@ -17,8 +16,8 @@ const QUESTIONS = {
       { q: "9 × 8 ?", r: "72" }, { q: "7 × 7 ?", r: "49" }, { q: "Rayon si diamètre 10 ?", r: "5" }, { q: "3 × 3 × 3 ?", r: "27" }, { q: "150 + 150 ?", r: "300" }
     ],
     '5ème': [
-      { q: "-5 + 8 ?", r: "3" }, { q: "-12 + 7 ?", r: "-5" }, { q: "-3 × 4 ?", r: "-12" }, { q: "Simplifie 4/8 ?", r: "1/2" }, { q: "Aire rectangle 5×8 ?", r: "40" }
-      // ... (Garde tes autres questions de 5ème ici)
+      { q: "-5 + 8 ?", r: "3" }, { q: "-12 + 7 ?", r: "-5" }, { q: "-3 × 4 ?", r: "-12" }, { q: "Simplifie 4/8 ?", r: "1/2" }, { q: "Aire rectangle 5×8 ?", r: "40" },
+      { q: "10% de 200 ?", r: "20" }, { q: "50% de 80 ?", r: "40" }, { q: "2 + 3 × 4 ?", r: "14" }, { q: "(5 + 3) × 2 ?", r: "16" }, { q: "Aire carré côté 6 ?", r: "36" }
     ]
   },
   french: {
@@ -28,7 +27,9 @@ const QUESTIONS = {
       { q: "Infinitif 'dormons' ?", r: "dormir" }, { q: "Type : 'Sortez !'", r: "imperative" }, { q: "Féminin 'lion' ?", r: "lionne" }, { q: "Syllabes 'bateau' ?", r: "2" }, { q: "Pluriel 'gaz' ?", r: "gaz" },
       { q: "Contraire 'petit' ?", r: "grand" }, { q: "Sujet 'Tu chantes' ?", r: "tu" }, { q: "Nature 'belle' ?", r: "adjectif" }, { q: "Verbe 'Il finit' ?", r: "finit" }, { q: "Synonyme 'joyeux' ?", r: "heureux" }
     ],
-    '5ème': [] // Tes questions 5ème
+    '5ème': [
+      { q: "Conditionnel 'pouvoir' (je) ?", r: "pourrais" }, { q: "Subjonctif 'être' (il) ?", r: "soit" }, { q: "Passé simple 'faire' (il) ?", r: "fit" }, { q: "Figure: fort comme un lion", r: "comparaison" }, { q: "Figure: mer est un miroir", r: "metaphore" }
+    ]
   },
   english: {
     '6ème': [
@@ -37,7 +38,9 @@ const QUESTIONS = {
       { q: "Apple ?", r: "pomme" }, { q: "Book ?", r: "livre" }, { q: "Hello ?", r: "bonjour" }, { q: "Thank you ?", r: "merci" }, { q: "Yellow ?", r: "jaune" },
       { q: "Green ?", r: "vert" }, { q: "Brother ?", r: "frère" }, { q: "Sister ?", r: "soeur" }, { q: "Sun ?", r: "soleil" }, { q: "Water ?", r: "eau" }
     ],
-    '5ème': [] // Tes questions 5ème
+    '5ème': [
+      { q: "Past of 'go' ?", r: "went" }, { q: "Past of 'eat' ?", r: "ate" }, { q: "Past of 'see' ?", r: "saw" }, { q: "Comparative of 'big' ?", r: "bigger" }, { q: "Superlative of 'happy' ?", r: "happiest" }
+    ]
   }
 };
 
@@ -65,7 +68,6 @@ function App() {
   const [stats, setStats] = useState({ correct: 0, total: 0 });
   const [currentCapital, setCurrentCapital] = useState(0);
   const [capitalScore, setCapitalScore] = useState(0);
-  const [capitalAnswers, setCapitalAnswers] = useState([]);
   const [selectedAvatar, setSelectedAvatar] = useState('🧁');
   const [showSettings, setShowSettings] = useState(false);
 
@@ -74,7 +76,6 @@ function App() {
     if (saved) setSelectedAvatar(saved);
   }, []);
 
-  // --- AUTH (CORRIGÉ POUR TES AMIS) ---
   const handleAuth = async (type) => {
     if (!username || password.length < 6) {
       alert("⚠️ Pseudo et mot de passe (6+ caractères) requis !");
@@ -86,23 +87,15 @@ function App() {
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) return alert("❌ " + error.message);
       
-      // CRÉATION FORCEE DU PROFIL
-      await supabase.from('profiles').insert([{
-        id: data.user.id,
-        email: username,
-        diamonds: 100,
-        level: 1,
-        streak: 0
-      }]);
+      await supabase.from('profiles').insert([{ id: data.user.id, email: username, diamonds: 100, level: 1, streak: 0 }]);
       alert("✨ Compte créé ! Connecte-toi maintenant.");
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return alert("❌ Pseudo ou mot de passe incorrect");
 
-      // RÉCUPÉRATION + VÉRIFICATION PROFIL
       let { data: prof } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
       
-      if (!prof) { // Si le profil manque, on le crée en urgence
+      if (!prof) {
         const { data: nP } = await supabase.from('profiles').insert([{ id: data.user.id, email: username, diamonds: 100, level: 1, streak: 0 }]).select().single();
         prof = nP;
       }
@@ -112,7 +105,6 @@ function App() {
     }
   };
 
-  // --- LOGIQUE QUIZ ---
   const handleCheckAnswer = async () => {
     const questions = QUESTIONS[category][level];
     const correct = questions[currentQ].r.toLowerCase().trim();
@@ -150,12 +142,11 @@ function App() {
     }
   };
 
-  // --- AFFICHAGE ---
   if (screen === 'auth') {
     return (
       <div className="app">
         <div className="auth-container">
-          <h1 className="logo">🍭 Candy Academy 🍬</h1>
+          <h1 className="logo">🍭 Candy Academy </h1>
           <p className="tagline">Apprends en t'amusant !</p>
           <input className="input-candy" placeholder="✨ Ton pseudo" value={username} onChange={e => setUsername(e.target.value)} />
           <input className="input-candy" type="password" placeholder="🔐 Mot de passe" value={password} onChange={e => setPassword(e.target.value)} />
@@ -203,7 +194,6 @@ function App() {
     );
   }
 
-  // --- ÉCRAN QUIZ / CAPITALES (TES VISUELS) ---
   return (
     <div className="app">
        {gameMode === 'quiz' ? (
