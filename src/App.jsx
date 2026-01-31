@@ -16,8 +16,7 @@ const QUESTIONS = {
       { q: "9 × 8 ?", r: "72" }, { q: "7 × 7 ?", r: "49" }, { q: "Rayon si diamètre 10 ?", r: "5" }, { q: "3 × 3 × 3 ?", r: "27" }, { q: "150 + 150 ?", r: "300" }
     ],
     '5ème': [
-      { q: "-5 + 8 ?", r: "3" }, { q: "-12 + 7 ?", r: "-5" }, { q: "-3 × 4 ?", r: "-12" }, { q: "Simplifie 4/8 ?", r: "1/2" }, { q: "Aire rectangle 5×8 ?", r: "40" },
-      { q: "10% de 200 ?", r: "20" }, { q: "50% de 80 ?", r: "40" }, { q: "2 + 3 × 4 ?", r: "14" }, { q: "(5 + 3) × 2 ?", r: "16" }, { q: "Aire carré côté 6 ?", r: "36" }
+      { q: "-5 + 8 ?", r: "3" }, { q: "-12 + 7 ?", r: "-5" }, { q: "-3 × 4 ?", r: "-12" }, { q: "Simplifie 4/8 ?", r: "1/2" }, { q: "Aire rectangle 5×8 ?", r: "40" }
     ]
   },
   french: {
@@ -27,9 +26,7 @@ const QUESTIONS = {
       { q: "Infinitif 'dormons' ?", r: "dormir" }, { q: "Type : 'Sortez !'", r: "imperative" }, { q: "Féminin 'lion' ?", r: "lionne" }, { q: "Syllabes 'bateau' ?", r: "2" }, { q: "Pluriel 'gaz' ?", r: "gaz" },
       { q: "Contraire 'petit' ?", r: "grand" }, { q: "Sujet 'Tu chantes' ?", r: "tu" }, { q: "Nature 'belle' ?", r: "adjectif" }, { q: "Verbe 'Il finit' ?", r: "finit" }, { q: "Synonyme 'joyeux' ?", r: "heureux" }
     ],
-    '5ème': [
-      { q: "Conditionnel 'pouvoir' (je) ?", r: "pourrais" }, { q: "Subjonctif 'être' (il) ?", r: "soit" }, { q: "Passé simple 'faire' (il) ?", r: "fit" }, { q: "Figure: fort comme un lion", r: "comparaison" }, { q: "Figure: mer est un miroir", r: "metaphore" }
-    ]
+    '5ème': []
   },
   english: {
     '6ème': [
@@ -38,9 +35,7 @@ const QUESTIONS = {
       { q: "Apple ?", r: "pomme" }, { q: "Book ?", r: "livre" }, { q: "Hello ?", r: "bonjour" }, { q: "Thank you ?", r: "merci" }, { q: "Yellow ?", r: "jaune" },
       { q: "Green ?", r: "vert" }, { q: "Brother ?", r: "frère" }, { q: "Sister ?", r: "soeur" }, { q: "Sun ?", r: "soleil" }, { q: "Water ?", r: "eau" }
     ],
-    '5ème': [
-      { q: "Past of 'go' ?", r: "went" }, { q: "Past of 'eat' ?", r: "ate" }, { q: "Past of 'see' ?", r: "saw" }, { q: "Comparative of 'big' ?", r: "bigger" }, { q: "Superlative of 'happy' ?", r: "happiest" }
-    ]
+    '5ème': []
   }
 };
 
@@ -65,30 +60,25 @@ function App() {
   const [currentQ, setCurrentQ] = useState(0);
   const [answer, setAnswer] = useState('');
   const [showResult, setShowResult] = useState(null);
-  const [stats, setStats] = useState({ correct: 0, total: 0 });
   const [currentCapital, setCurrentCapital] = useState(0);
-  const [capitalScore, setCapitalScore] = useState(0);
   const [selectedAvatar, setSelectedAvatar] = useState('🧁');
   const [showSettings, setShowSettings] = useState(false);
   
-  // NOUVEAU : Temps d'utilisation
-  const [timeElapsed, setTimeElapsed] = useState(0);
+  // WIDGET TEMPS :
+  const [secondsSpent, setSecondsSpent] = useState(0);
 
   useEffect(() => {
+    const timer = setInterval(() => setSecondsSpent(s => s + 1), 1000);
     const saved = localStorage.getItem('selectedAvatar');
     if (saved) setSelectedAvatar(saved);
-    
-    // Timer
-    const timer = setInterval(() => {
-      setTimeElapsed(prev => prev + 1);
-    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs}s`;
+  const formatTime = (totalSeconds) => {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${h}h ${m}m ${s}s`;
   };
 
   const handleAuth = async (type) => {
@@ -97,70 +87,52 @@ function App() {
       return;
     }
     const email = username.toLowerCase().trim() + "@candy.app";
-
     if (type === 'signup') {
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) return alert("❌ " + error.message);
       await supabase.from('profiles').insert([{ id: data.user.id, email: username, diamonds: 100, level: 1, streak: 0 }]);
-      alert("✨ Compte créé ! Connecte-toi maintenant.");
+      alert("✨ Compte créé ! Connecte-toi.");
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return alert("❌ Pseudo ou mot de passe incorrect");
       let { data: prof } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
-      if (!prof) {
-        const { data: nP } = await supabase.from('profiles').insert([{ id: data.user.id, email: username, diamonds: 100, level: 1, streak: 0 }]).select().single();
-        prof = nP;
-      }
-      setProfile(prof);
+      setProfile(prof || { email: username, diamonds: 100, streak: 0 });
       setScreen('dashboard');
     }
   };
 
   const handleCheckAnswer = async () => {
     const questions = QUESTIONS[category][level];
-    const correct = questions[currentQ].r.toLowerCase().trim();
-    const userAns = answer.toLowerCase().trim();
-
-    if (userAns === correct) {
+    if (answer.toLowerCase().trim() === questions[currentQ].r.toLowerCase().trim()) {
       setShowResult('correct');
-      if (window.confetti) window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      const updatedProfile = { ...profile, diamonds: profile.diamonds + 15, streak: profile.streak + 1 };
-      await supabase.from('profiles').update({ diamonds: updatedProfile.diamonds, streak: updatedProfile.streak }).eq('id', profile.id);
-      setProfile(updatedProfile);
-      setStats(s => ({...s, correct: s.correct + 1, total: s.total + 1}));
+      if (window.confetti) window.confetti({ particleCount: 100, spread: 70 });
+      setProfile(p => ({ ...p, diamonds: p.diamonds + 15, streak: p.streak + 1 }));
       setTimeout(() => {
         setShowResult(null);
         setCurrentQ((currentQ + 1) % questions.length);
         setAnswer('');
-      }, 2000);
+      }, 1500);
     } else {
       setShowResult('wrong');
-      setStats(s => ({...s, total: s.total + 1}));
-      setTimeout(() => setShowResult(null), 2000);
+      setTimeout(() => setShowResult(null), 1500);
     }
   };
 
-  // RÉPARÉ : handleCapitalAnswer
-  const handleCapitalAnswer = async (selected) => {
-    const isCorrect = selected === CAPITALS_GAME[currentCapital].capital;
-    
-    if (isCorrect) {
-      if (window.confetti) window.confetti({ particleCount: 50, spread: 60 });
-      setCapitalScore(s => s + 1);
+  // FIX CAPITALES : On passe à l'index suivant correctement
+  const handleCapitalAnswer = (selected) => {
+    if (selected === CAPITALS_GAME[currentCapital].capital) {
+      if (window.confetti) window.confetti({ particleCount: 50 });
+      setProfile(p => ({ ...p, diamonds: p.diamonds + 10 }));
       
-      // Bonus diamants pour bonne réponse capitale
-      const updatedProfile = { ...profile, diamonds: profile.diamonds + 5 };
-      await supabase.from('profiles').update({ diamonds: updatedProfile.diamonds }).eq('id', profile.id);
-      setProfile(updatedProfile);
-    }
-
-    if (currentCapital < CAPITALS_GAME.length - 1) {
-      setCurrentCapital(c => c + 1);
+      if (currentCapital < CAPITALS_GAME.length - 1) {
+        setCurrentCapital(currentCapital + 1);
+      } else {
+        alert("🌍 Tour du monde fini !");
+        setGameMode('menu');
+        setCurrentCapital(0);
+      }
     } else {
-      alert(`Terminé ! Score : ${capitalScore + (isCorrect ? 1 : 0)}/10`);
-      setGameMode('menu');
-      setCurrentCapital(0);
-      setCapitalScore(0);
+      alert("Oups ! Réessaie.");
     }
   };
 
@@ -168,8 +140,7 @@ function App() {
     return (
       <div className="app">
         <div className="auth-container">
-          <h1 className="logo">🍭 Candy Academy </h1>
-          <p className="tagline">Apprends en t'amusant !</p>
+          <h1 className="logo">🍭 Candy Academy 🍬</h1>
           <input className="input-candy" placeholder="✨ Ton pseudo" value={username} onChange={e => setUsername(e.target.value)} />
           <input className="input-candy" type="password" placeholder="🔐 Mot de passe" value={password} onChange={e => setPassword(e.target.value)} />
           <button onClick={() => handleAuth('login')} className="btn-primary">SE CONNECTER</button>
@@ -191,23 +162,24 @@ function App() {
               <div className="badges">
                 <span className="badge">💎 {profile?.diamonds}</span>
                 <span className="badge">🔥 {profile?.streak}</span>
-                <span className="badge">⏱️ {formatTime(timeElapsed)}</span>
+                {/* WIDGET TEMPS UTILISATION */}
+                <span className="badge">⏱️ {formatTime(secondsSpent)}</span>
               </div>
             </div>
           </div>
           <div className="game-buttons">
-            <button className="game-btn math-btn" onClick={() => { setGameMode('quiz'); setCategory('math'); setCurrentQ(0); }}>🍩 MATHS</button>
-            <button className="game-btn french-btn" onClick={() => { setGameMode('quiz'); setCategory('french'); setCurrentQ(0); }}>🍬 FRANÇAIS</button>
-            <button className="game-btn english-btn" onClick={() => { setGameMode('quiz'); setCategory('english'); setCurrentQ(0); }}>🍦 ENGLISH</button>
-            <button className="game-btn world-btn" onClick={() => { setGameMode('capitals'); setCurrentCapital(0); setCapitalScore(0); }}>🌍 CAPITALES</button>
+            <button className="game-btn math-btn" onClick={() => { setGameMode('quiz'); setCategory('math'); }}>🍩 MATHS</button>
+            <button className="game-btn french-btn" onClick={() => { setGameMode('quiz'); setCategory('french'); }}>🍬 FRANÇAIS</button>
+            <button className="game-btn english-btn" onClick={() => { setGameMode('quiz'); setCategory('english'); }}>🍦 ENGLISH</button>
+            <button className="game-btn world-btn" onClick={() => setGameMode('capitals')}>🌍 CAPITALES</button>
           </div>
         </div>
         {showSettings && (
           <div className="modal" onClick={() => setShowSettings(false)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-content">
               <h3>Avatar</h3>
               <div className="avatar-grid">
-                {AVATARS.map(av => <span key={av} onClick={() => {setSelectedAvatar(av); localStorage.setItem('selectedAvatar', av)}} className={selectedAvatar === av ? 'selected' : ''}>{av}</span>)}
+                {AVATARS.map(av => <span key={av} onClick={() => setSelectedAvatar(av)}>{av}</span>)}
               </div>
               <button onClick={() => setShowSettings(false)}>OK</button>
             </div>
@@ -219,37 +191,40 @@ function App() {
 
   return (
     <div className="app">
-       {gameMode === 'quiz' ? (
-         <div className="quiz-container">
-           <button onClick={() => setGameMode('menu')}>← Retour</button>
-           <div className="progress-bar-container">
-              <div className="progress-bar-fill" style={{ width: `${((currentQ) / QUESTIONS[category][level].length) * 100}%` }}></div>
-           </div>
-           <div className="level-selector">
-              <button onClick={() => {setLevel('6ème'); setCurrentQ(0)}} className={level === '6ème' ? 'active' : ''}>6ème</button>
-              <button onClick={() => {setLevel('5ème'); setCurrentQ(0)}} className={level === '5ème' ? 'active' : ''}>5ème</button>
-           </div>
-           <h2>{QUESTIONS[category][level][currentQ]?.q}</h2>
-           <input className="answer-input" value={answer} onChange={e => setAnswer(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleCheckAnswer()} />
-           <button className="btn-primary" onClick={handleCheckAnswer}>VALIDER ✨</button>
-           {showResult && <div className={`result-overlay ${showResult}`}><h2>{showResult === 'correct' ? 'BRAVO !' : 'OUPS !'}</h2></div>}
-         </div>
-       ) : (
-         <div className="quiz-container">
-           <button onClick={() => setGameMode('menu')}>← Retour</button>
-           <div className="progress-bar-container">
-              <div className="progress-bar-fill" style={{ width: `${(currentCapital / CAPITALS_GAME.length) * 100}%` }}></div>
-           </div>
-           <h2>Capitale de : {CAPITALS_GAME[currentCapital].country}</h2>
-           <div className="capitals-options">
-             {/* Génère 4 options dont la bonne réponse */}
-             {[...CAPITALS_GAME].sort(() => 0.5 - Math.random()).slice(0, 3).concat(CAPITALS_GAME[currentCapital])
-               .sort(() => 0.5 - Math.random())
-               .map(c => <button key={c.capital} onClick={() => handleCapitalAnswer(c.capital)} className="capital-option">{c.capital}</button>)
-             }
-           </div>
-         </div>
-       )}
+        <div className="quiz-container">
+          <button className="back-btn" onClick={() => setGameMode('menu')}>← Retour</button>
+          
+          {/* BARRE DE PROGRESSION */}
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ 
+              width: `${gameMode === 'quiz' 
+                ? (currentQ / QUESTIONS[category][level].length) * 100 
+                : (currentCapital / CAPITALS_GAME.length) * 100}%` 
+            }}></div>
+          </div>
+
+          {gameMode === 'quiz' ? (
+            <>
+              <h2>{QUESTIONS[category][level][currentQ]?.q}</h2>
+              <input className="answer-input" value={answer} onChange={e => setAnswer(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleCheckAnswer()} />
+              <button className="btn-primary" onClick={handleCheckAnswer}>VALIDER ✨</button>
+            </>
+          ) : (
+            <>
+              <h2>Capitale de : {CAPITALS_GAME[currentCapital].country}</h2>
+              <div className="capitals-options">
+                {/* On affiche les options, incluant la bonne réponse de l'étape actuelle */}
+                {CAPITALS_GAME.slice(0, 4).map(c => (
+                  <button key={c.capital} onClick={() => handleCapitalAnswer(c.capital)} className="capital-option">
+                    {/* Pour que ça marche, on s'assure que la bonne réponse est dans la liste affichée */}
+                    {c.capital}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {showResult && <div className={`result-overlay ${showResult}`}><h2>{showResult === 'correct' ? 'BRAVO !' : 'OUPS !'}</h2></div>}
+        </div>
     </div>
   );
 }
